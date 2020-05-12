@@ -44,8 +44,8 @@
       "adminTab":{
          "singleton":true,
          "name":{
-            "en":"DMXfaceXP",
-            "de":"DMXfaceXP"
+            "en":"DMXface Counter",
+            "de":"DMXface Counter"
          },
          "link":"www.dmxface.at",
          "fa-icon":"info"
