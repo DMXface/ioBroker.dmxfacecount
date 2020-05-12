@@ -1,12 +1,12 @@
 {
-   "name":"iobroker.dmxface",
-   "version":"1.1.0",
-   "description":"DMXfaceXP adapter for ioBroker",
+   "name":"ioBroker.dmxfacecount",
+   "version":"1.0.0",
+   "description":"DMXfaceXP counter adapter for ioBroker",
    "author":{
       "name":"Hufnagl Oliver",
       "email":"mail@dmxface.at"
    },
-   "homepage":"https://github.com/DMXface/ioBroker.dmxface",
+   "homepage":"https://github.com/DMXface/ioBroker.dmxfacecount",
    "license":"MIT",
    "keywords":[
       "ioBroker",
@@ -18,7 +18,7 @@
    ],
    "repository":{
       "type":"git",
-      "url":"https://github.com/DMXface/ioBroker.dmxface"
+      "url":"https://github.com/DMXface/ioBroker.dmxfacecount"
    },
    "dependencies":{
       "@iobroker/adapter-core":"^1.0.3"
@@ -31,7 +31,7 @@
 
    },
    "bugs":{
-      "url":"https://github.com/DMXface/ioBroker.dmxface/issues"
+      "url":"https://github.com/DMXface/ioBroker.dmxfacecount/issues"
    },
    "readmeFilename":"README.md"
 }

@@ -1,21 +1,21 @@
 {
    "common":{
-      "name":"dmxface",
-      "version":"1.1.0",
+      "name":"ioBroker.dmxfacecount",
+      "version":"1.0.0",
       "news":{
-         "1.1.0":{
-            "en":"ioBroker adapter for DMXfaceXP controllers",
-            "de":"ioBroker Adapter für DMXfaceXP Controller"
+         "1.0.0":{
+            "en":"ioBroker counter adapter for DMXfaceXP controllers",
+            "de":"ioBroker Zähladapter für DMXfaceXP Controller"
          }
       },
-      "title":"DMXfaceXP",
+      "title":"DMXfaceXP Counter Adapter",
       "titleLang":{
-         "en":"DMXfaceXP ioBroker adapter",
-         "de":"DMXfaceXP ioBroker Adapter"
+         "en":"DMXfaceXP ioBroker counter adapter",
+         "de":"DMXfaceXP ioBroker Zähladapter"
       },
       "desc":{
-         "en":"Connects DMXfaceXP by ACTIVE SEND protocoll",
-         "de":"Verbindet das DMXfaceXP über das ACTICE SEND Protokoll"
+         "en":"Special function adapter, connects DMXfaceXP by Trigger and Sequence protocoll",
+         "de":"Spzeial Adapter für Zählung, verbindet das DMXfaceXP über das Trigger and sequence Protokoll"
       },
       "authors":[
          "Author <mail@dmxface.at>"
@@ -33,8 +33,8 @@
       "main":"main.js",
       "icon":"dmxface.png",
       "enabled":true,
-      "extIcon":"https://raw.githubusercontent.com/DMXface/ioBroker.dmxface/master/admin/dmxface.png",
-      "readme":"https://github.com/DMXface/ioBroker.dmxface/blob/master/README.md",
+      "extIcon":"https://raw.githubusercontent.com/DMXface/ioBroker.dmxfacecount/master/admin/dmxface.png",
+      "readme":"https://github.com/DMXface/ioBroker.dmxfacecount/blob/master/README.md",
       "loglevel":"info",
       "mode":"daemon",
       "type":"general",
