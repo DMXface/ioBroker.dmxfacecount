@@ -271,7 +271,7 @@ function CBclientCLOSED() {
 	adapter.log.warn ("DMXface connection closed");
 	if (APPLICATIONstopp ==false) {
 		var RCTASK = setTimeout (CONNECT_CLIENT,30000);			//within 30 Sec.
-		adapter.log.info ("Trying to reconnect in 30sec.");
+		adapter.log.info ("Trying to reconnect in 30sec. ");
 	}
 		
 }
