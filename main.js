@@ -1,5 +1,5 @@
 'use strict';
-//DMXfaceXP Adapter for counter application with ioBroker
+//DMXfaceXP Server Adapter for counter application with ioBroker
 //REV 1.0.0
 
 const adaptername = "dmxfacecount"
@@ -7,43 +7,76 @@ const adaptername = "dmxfacecount"
 const utils = require('@iobroker/adapter-core');
 var adapter  = utils.Adapter (adaptername);
 
-var LOG_ALL = false;						//Flag to activate full logging
-
-//DMXFACE CONNECTION values
-var IPADR  = "0.0.0.0";						//DMXface IP address
+//SERVER CONNECTION values
 var PORT = 0;								//DMXface port of TCP server ACIVE SEND socket (Configured @ DMXface Setup)
-var TIMING = 1000;							//Request timing for addtional added ports and analog inputs
-var DMX_CHANNELS_USED = 0;					//DMXchannels in use by ioBroker to prevent getting objects for all 244 channels
 
 // DMXface TCP Connection
 var net = require ('net');
-var client = new net.Socket();
 
-	// Handler
-	client.on ('data',CBclientRECEIVE);
-	client.on ('error',CBclientERROR);
-	client.on ('close',CBclientCLOSED);
-	client.on ('ready',CBclientCONNECT);
-var APPLICATIONstopp = false;		//FLAG that shows that a reconnect process is runnig, after an error has occured.
-
-//FLAG, true when connection established and free of error
+//FLAG, true when Server listening
 var IS_ONLINE  = false;
-//Spiegelung der States nach Lokal
+
+//Local mirror of states
 var LOCAL_COUNTER_TOTAL = 0;
 var LOCAL_LIMIT_RED = 0;  
 var LOCAL_LIMIT_YELLOW = 0;
 var LOCAL_COUNTER_MODE = 0;
 
+//Server and connection list
+var connectedSockets = new Set();
+var server = net.createServer();
+
+
+//TCP SERVER
+server.on ('connection', function (socket){
+	var remoteAddress = socket.remoteAddress +":" + socket.remotePort;
+	adapter.log.info (remoteAddress + "  DMXface connected");
+	connectedSockets.add(socket);
+	
+	socket.on('end', function() {
+        adapter.log.info (remoteAddress + " End");
+		connectedSockets.delete(socket);
+    });
+	
+	socket.on('close', function() {
+        adapter.log.info (remoteAddress + " Closed");
+		connectedSockets.delete(socket);
+    });
+	
+	socket.on('error', function() {
+        adapter.log.info (remoteAddress + " Error:"+ err.message);
+		connectedSockets.delete(socket);
+    });
+	
+	//RECEIVE from DMXFACE
+	socket.on ('data',function(RX){
+		//adapter.log.info (remoteAddress + " RX:" + RX.length + " bytes");
+		var DELTA=0;
+		if (RX[0] == 69) {DELTA = 1;}		//EIN
+		if (RX[0] == 65) {DELTA = -1;}	    //AUS
+		if (DELTA ==0) {return;}
+		LOCAL_COUNTER_TOTAL+=DELTA;
+		if (LOCAL_COUNTER_TOTAL <0){LOCAL_COUNTER_TOTAL=0};
+		adapter.setState('COUNTER_TOTAL',LOCAL_COUNTER_TOTAL,true);
+		//adapter.log.info ('Received DELTA:' + DELTA + '  COUNTER_TOTAL' +LOCAL_COUNTER_TOTAL);
+	});
+});
+
+//Send to all clients connected
+connectedSockets.broadcast = function(data) {
+    for (let sock of this) {
+            sock.write(data);
+    }
+}
+
+
+
+
 //*************************************  ADAPTER STARTS with ioBroker *******************************************
 adapter.on ('ready',function (){
 	var i;
 //Move the ioBroker Adapter configuration to the container values 
-	IPADR = adapter.config.ipaddress;
 	PORT = adapter.config.port;
-	LOG_ALL = adapter.config.extlogging;
-	
-	adapter.log.info ("DMXfaceXP " + IPADR + " Port:" + PORT);
-
 
 //Counter , Modus , Limits , werden auch Lokal gehalten 
 	adapter.setObjectNotExists ("COUNTER_TOTAL",{
@@ -96,8 +129,7 @@ adapter.on ('ready',function (){
 			native:{}
 		});	
 
-
-//calls sent to LANPORT --> Trigger
+//Possiblility to send to DMXface (receiving as "SEND"+number with a trigger)
 	adapter.setObjectNotExists ('SEND',{
 		type:'state',
 		common:{name:'SENDtoDMXface',type:'number',role:'value',read:true,write:true},
@@ -105,7 +137,7 @@ adapter.on ('ready',function (){
 	});		
 		
 
-//lokale Pramter abfragen
+//Update local mirrors 
 adapter.getState('COUNTER_TOTAL' , function (err, state) {	//get current counter value
 			
 			if (state !=null) {							//EXIT if state is not initialized yet
@@ -145,18 +177,20 @@ adapter.getState('COUNTER_MODE' , function (err, state) {	//get current counter 
 
 //Enable receiving of change events for all objects
 	adapter.subscribeStates('*');
-// Connect the DMXface server (function below)
-	CONNECT_CLIENT();
 
-
+//Start Server	
+	server.listen (PORT,function () {
+		adapter.log.info ("Server listen at Port: " + PORT);
+		IS_ONLINE = true;
+	});
 });
+
 
 //************************************* ADAPTER CLOSED BY ioBroker *****************************************
 adapter.on ('unload',function (callback){
-	APPLICATIONstopp = true
 	IS_ONLINE = false;
-	adapter.log.info ('DMXface: Close connection, cancel service');
-	client.close;
+	adapter.log.info ('Close server connection, cancel service');
+	server.close;
 	callback;
 	});
 
@@ -169,9 +203,9 @@ adapter.on ('stateChange',function (id,obj){
 		adapter.log.info ('Object: '+ id + ' terminated by user');
 		return;
 	}
-	adapter.log.info ('Object: '+ id + ' VAL:' + obj.val);
+	//adapter.log.info ('Object: '+ id + ' VAL:' + obj.val);
 	
-//WENN SICH EIN STATE LIMIT,WARNING oder COUNTER ändert die lokale Variable mitziehen
+//Track state changes that are relevant for controlling the output
 	if (id.search ('COUNTER_TOTAL') >-1)
 	{
 		LOCAL_COUNTER_TOTAL = obj.val;
@@ -201,20 +235,17 @@ adapter.on ('stateChange',function (id,obj){
 	}
 	
 	if (obj.from.search (adaptername) != -1) {return;}    // do not process self generated state changes (by dmxface instance) 
-														  //exit if sender = dmxface
-	var PORTSTRING = id.substring(adaptername.length+3);  				//remove Instance name
-	// if (PORTSTRING[0] ='.'){PORTSTRING = id.substring(adaptername.length+4)};  optional removal if more than 10 Instances are used 
-	//Statistic value´s are not processed
-	//Reset of min max 
-	if (PORTSTRING.search ('FNKTN_RESET') >-1)
+														  //exit if sender = Adaptername
+//Reset state
+	if (id.search ('FNKTN_RESET') >-1)
 	{
 		adapter.setState('COUNTER_TOTAL',0,true);
 		adapter.setState(ID,false,true);
-		adapter.log.info ('COUNTER_TOTAL: RESET');
+		adapter.log.info ('COUNTER_TOTAL, RESET to 0');
 		return;	
 	}
-
-	if (PORTSTRING.search ('FNKTN_ADD') >-1)
+//ADD State
+	if (id.search ('FNKTN_ADD') >-1)
 	{
 		var ADDS = obj.val;
 		if (ADDS <= 0){return;}
@@ -223,8 +254,8 @@ adapter.on ('stateChange',function (id,obj){
 		adapter.log.info ('Added to COUNTER_TOTAL:' + ADDS);
 		return;	
 	}
-	
-	if (PORTSTRING.search ('FNKTN_SUB') >-1)
+//Sub State	
+	if (id.search ('FNKTN_SUB') >-1)
 	{
 		var SUBS = obj.val;
 		if (SUBS <= 0){return;}
@@ -234,89 +265,39 @@ adapter.on ('stateChange',function (id,obj){
 		adapter.log.info ('Subtrcted from COUNTER_TOTAL:' + SUBS);
 		return;	
 	}
-
-	if (PORTSTRING.search ('SEND') >-1)
+//Send command to all connected Interfaces
+	if (id.search ('SEND') >-1)
 	{
 		var SND = obj.val;
 		var WDATA; 
 		WDATA= Buffer.from ([83,69,78,68,(SND & 0xFF)]); 
-		client.write (WDATA);
+		connectedSockets.broadcast(WDATA);
 		return;
 	}
 });
 
-
-//************************************* TCP CONNECT /ERROR / CLOSED ****************************************
-function CONNECT_CLIENT () {
-	IS_ONLINE = false;
-	adapter.log.info("Connecting DMXface controller " + IPADR + " "+ PORT);
-	client.connect (PORT,IPADR);
-}
-
-//CLIENT SUCCESSFUL CONNECTED (CALLBACK from CONNECT_CLIENT)
-function CBclientCONNECT () {
-	//adapter.setState ('info.connection',true,true);
-	adapter.log.info ('DMXface connection established');
-	IS_ONLINE = true;
-	AMPELCONTROLLER();  //Ampel Status setzen
-}
-
-//CLIENT ERROR HANDLER AND CONNECTION RESTART
-function CBclientERROR(Error) {
-	IS_ONLINE = false;											//Flag Connection not longer online
-	adapter.log.error ("Error DMXface connection: " + Error);	
-	client.close;												//Close the connection
-}
-function CBclientCLOSED() {
-	adapter.log.warn ("DMXface connection closed");
-	if (APPLICATIONstopp ==false) {
-		var RCTASK = setTimeout (CONNECT_CLIENT,30000);			//within 30 Sec.
-		adapter.log.info ("Trying to reconnect in 30sec. ");
-	}
-		
-}
-
-//************************************* PROCESSING ASYNCHRON RECEIVED DATA FROM DMXface ******************************************
-function CBclientRECEIVE(RXdata) {
-	if (RXdata.length != 3) {return;}			// Minimum Length of response ist start 0xF0, Signature 0xnn and at least one data byte 
-	var DELTA=0;
-	if (RXdata[0] == 69) {DELTA = 1;}		//EIN
-	if (RXdata[0] == 65) {DELTA = -1;}	    //AUS
-											//RESET--> R
-											//+1 --> P
-											//-1 --> M 
-											
-	if (DELTA ==0) {return;}
-	LOCAL_COUNTER_TOTAL+=DELTA;
-	if (LOCAL_COUNTER_TOTAL <0){LOCAL_COUNTER_TOTAL=0};
-	adapter.setState('COUNTER_TOTAL',LOCAL_COUNTER_TOTAL,true);
-	if (LOG_ALL) {adapter.log.info ('Received DELTA:' + DELTA + '  COUNTER_TOTAL' +LOCAL_COUNTER_TOTAL)};
-}
-
-
-
-//STEUERUNG DES AMPEL STATUS 
+//Output Control
 function AMPELCONTROLLER(){
 	var WDATA; 		//AUSGABE am NETZWERK "RED" "YELLOW" "GREEN"
 		
 	//MODUS ist auf ROT
 	if (LOCAL_COUNTER_MODE ==1) {
 		WDATA= Buffer.from ([82,69,68]); 	// 'RED'
-		client.write (WDATA);
+		connectedSockets.broadcast(WDATA);
 		adapter.setState('OUTPUT_STATE',2,true);					//ROT
 		return;
 	}
 	//MODUS ist auf GELB
 	if (LOCAL_COUNTER_MODE ==2) {
 		WDATA= Buffer.from ([89,69,76,76,79,87]); 	// 'YELLOW'
-		client.write (WDATA);
+		connectedSockets.broadcast(WDATA);
 		adapter.setState('OUTPUT_STATE',1,true);				//GELB
 		return;
 	}
 	//MODUS ist auf GRÜN
 	if (LOCAL_COUNTER_MODE > 2) {
 		WDATA= Buffer.from ([71,82,69,69,78]); 	// 'GREEN'
-		client.write (WDATA);
+		connectedSockets.broadcast(WDATA);
 		adapter.setState('OUTPUT_STATE',0,true);				//GRÜN
 		return;
 	}
@@ -324,7 +305,7 @@ function AMPELCONTROLLER(){
 	//Über LIMIT ROT
 	if (LOCAL_COUNTER_TOTAL >= LOCAL_LIMIT_RED){
 		WDATA= Buffer.from ([82,69,68]); 	// 'RED'
-		client.write (WDATA);
+		connectedSockets.broadcast(WDATA);
 		adapter.setState('OUTPUT_STATE',2,true);				//ROT
 		return;
 	}
@@ -332,14 +313,14 @@ function AMPELCONTROLLER(){
 	//Über LIMIT GELB
 	if (LOCAL_COUNTER_TOTAL >= LOCAL_LIMIT_YELLOW){
 		WDATA= Buffer.from ([89,69,76,76,79,87]); 	// 'YELLOW'
-		client.write (WDATA);
+		connectedSockets.broadcast(WDATA);
 		adapter.setState('OUTPUT_STATE',1,true);					//GELB
 		return;
 	}
 	
 	//GRÜN
 	WDATA= Buffer.from ([71,82,69,69,78]); 	// 'GREEN'
-	client.write (WDATA);
+	connectedSockets.broadcast(WDATA);
 	adapter.setState('OUTPUT_STATE',0,true);	//GRÜN
 	return;
 }
