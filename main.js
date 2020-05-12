@@ -240,7 +240,6 @@ adapter.on ('stateChange',function (id,obj){
 	if (id.search ('FNKTN_RESET') >-1)
 	{
 		adapter.setState('COUNTER_TOTAL',0,true);
-		adapter.setState(ID,false,true);
 		adapter.log.info ('COUNTER_TOTAL, RESET to 0');
 		return;	
 	}
