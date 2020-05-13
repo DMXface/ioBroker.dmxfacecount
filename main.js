@@ -21,6 +21,10 @@ var LOCAL_COUNTER_TOTAL = 0;
 var LOCAL_LIMIT_RED = 0;  
 var LOCAL_LIMIT_YELLOW = 0;
 var LOCAL_COUNTER_MODE = 0;
+var LOCAL_COUNTER_IN = 0;
+var LOCAL_COUNTER_OUT = 0;
+
+
 
 //Server and connection list
 var connectedSockets = new Set();
@@ -52,8 +56,16 @@ server.on ('connection', function (socket){
 	socket.on ('data',function(RX){
 		//adapter.log.info (remoteAddress + " RX:" + RX.length + " bytes");
 		var DELTA=0;
-		if (RX[0] == 69) {DELTA = 1;}		//EIN
-		if (RX[0] == 65) {DELTA = -1;}	    //AUS
+		if (RX[0] == 69) {
+			DELTA = 1;
+			LOCAL_COUNTER_IN +=1;
+			adapter.setState('COUNTER_IN',LOCAL_COUNTER_IN,true);
+			}		//EIN
+		if (RX[0] == 65) {
+			DELTA = -1;
+			LOCAL_COUNTER_OUT +=1;
+			adapter.setState('COUNTER_OUT',LOCAL_COUNTER_OUT,true);
+			}	    //AUS
 		if (DELTA ==0) {return;}
 		LOCAL_COUNTER_TOTAL+=DELTA;
 		if (LOCAL_COUNTER_TOTAL <0){LOCAL_COUNTER_TOTAL=0};
@@ -84,6 +96,18 @@ adapter.on ('ready',function (){
 			common:{name:'COUNTER_TOTAL',type:'number',role:'value',read:true,write:true},
 			native:{}
 		});		
+
+	adapter.setObjectNotExists ("COUNTER_IN",{
+		type:'state',
+			common:{name:'COUNTER_IN',type:'number',role:'value',read:true,write:true},
+			native:{}
+		});		
+	adapter.setObjectNotExists ("COUNTER_OUT",{
+		type:'state',
+			common:{name:'COUNTER_OUT',type:'number',role:'value',read:true,write:true},
+			native:{}
+		});		
+
 
 //Ampel MODUS 0=Zählen / Auto , 1= Permanent ROT 2= Permanent GELB , ansonsten Permanent GRÜN
 	adapter.setObjectNotExists ("COUNTER_MODE",{
@@ -146,6 +170,26 @@ adapter.getState('COUNTER_TOTAL' , function (err, state) {	//get current counter
 				}
 			}
 			adapter.log.info ('COUNTER_TOTAL:' + LOCAL_COUNTER_TOTAL);
+		});
+		
+adapter.getState('COUNTER_IN' , function (err, state) {	//get current counter value
+			
+			if (state !=null) {							//EXIT if state is not initialized yet
+				if (state.val !=null) {					//Exit if value not initialized
+					LOCAL_COUNTER_IN= state.val;
+				}
+			}
+			adapter.log.info ('COUNTER_IN:' + LOCAL_COUNTER_IN);
+		});
+
+adapter.getState('COUNTER_OUT' , function (err, state) {	//get current counter value
+			
+			if (state !=null) {							//EXIT if state is not initialized yet
+				if (state.val !=null) {					//Exit if value not initialized
+					LOCAL_COUNTER_OUT= state.val;
+				}
+			}
+			adapter.log.info ('COUNTER_OUT:' + LOCAL_COUNTER_OUT);
 		});
 
 adapter.getState('LIMIT_RED' , function (err, state) {	//get current counter value
@@ -240,7 +284,12 @@ adapter.on ('stateChange',function (id,obj){
 	if (id.search ('FNKTN_RESET') >-1)
 	{
 		adapter.setState('COUNTER_TOTAL',0,true);
-		adapter.log.info ('COUNTER_TOTAL, RESET to 0');
+		LOCAL_COUNTER_TOTAL = 0;
+		adapter.setState('COUNTER_IN',0,true);
+		LOCAL_COUNTER_IN=0;
+		adapter.setState('COUNTER_OUT',0,true);
+		LOCAL_COUNTER_OUT=0;
+		adapter.log.info ('COUNTER_TOTAL,IN,OUT -->RESET to 0');
 		return;	
 	}
 //ADD State
