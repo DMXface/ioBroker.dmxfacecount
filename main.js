@@ -1,6 +1,6 @@
 'use strict';
 //DMXfaceXP Server Adapter for counter application with ioBroker
-//REV 1.0.0
+//REV 1.3.0
 
 const adaptername = "dmxfacecount"
 
