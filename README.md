@@ -47,7 +47,7 @@ Port: Same as configured with the communication socket for ioBroker at the DMXfa
 released for use with DMXfaceXP Controller
 
 ##  Changelog
-1.0.0  Initial release<br>
+1.3.0  Initial release<br>
 
 ## License
 MIT License<br>
