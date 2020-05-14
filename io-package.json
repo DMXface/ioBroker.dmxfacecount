@@ -1,4 +1,4 @@
-﻿{
+{
    "common":{
       "name":"ioBroker.dmxfacecount",
       "version":"1.3.0",
@@ -56,7 +56,7 @@
       ]
    },
    "native":{
-      "port":"6000",
+      "port":"6000"
    },
    "objects":[
 
