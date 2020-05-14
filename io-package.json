@@ -1,4 +1,4 @@
-{
+﻿{
    "common":{
       "name":"ioBroker.dmxfacecount",
       "version":"1.0.0",
@@ -24,9 +24,7 @@
          "ioBroker",
          "dmxface",
          "DMXfaceXP",
-         "Media controller",
-         "Smart Home",
-         "home automation"
+         "Media controller"
       ],
       "license":"MIT",
       "platform":"Javascript/Node.js",
@@ -58,10 +56,7 @@
       ]
    },
    "native":{
-      "ipaddress":"0.0.0.0",
       "port":"6000",
-      "requesttiming":"1000",
-      "lastdmxchannel":"0"
    },
    "objects":[
 

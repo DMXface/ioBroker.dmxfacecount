@@ -12,9 +12,7 @@
       "ioBroker",
       "dmxface",
       "DMXfaceXP",
-      "Media controller",
-      "Smart Home",
-      "home automation"
+      "Media controller"
    ],
    "repository":{
       "type":"git",
